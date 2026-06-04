@@ -104,3 +104,66 @@ def log(id: int, note: str) -> None:
             (id, timestamp, note),
         )
     click.echo(f"Logged: {note}")
+
+
+@cli.command()
+@click.argument("id", type=int)
+def show(id: int) -> None:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    console = Console()
+
+    with get_connection() as conn:
+        app = conn.execute(
+            "SELECT company, role, status, url, notes, applied_date, next_action FROM applications WHERE id = ?",
+            (id,),
+        ).fetchone()
+
+        if not app:
+            click.echo(f"No application found with ID {id}.")
+            return
+
+        logs = conn.execute(
+            "SELECT timestamp, note FROM activity_log WHERE application_id = ? ORDER BY timestamp",
+            (id,),
+        ).fetchall()
+
+        contacts = conn.execute(
+            "SELECT name, role, email FROM contacts WHERE application_id = ?",
+            (id,),
+        ).fetchall()
+
+    company, role, status, url, notes, applied_date, next_action = app
+
+    details = Text()
+    details.append(f"Role:        ", style="bold")
+    details.append(f"{role}\n")
+    details.append(f"Status:      ", style="bold")
+    details.append(f"{status}\n")
+    details.append(f"Applied:     ", style="bold")
+    details.append(f"{applied_date or '—'}\n")
+    details.append(f"URL:         ", style="bold")
+    details.append(f"{url or '—'}\n")
+    details.append(f"Next Action: ", style="bold")
+    details.append(f"{next_action or '—'}\n")
+    details.append(f"Notes:       ", style="bold")
+    details.append(f"{notes or '—'}")
+
+    console.print(Panel(details, title=f"[bold]{company}[/bold]", expand=False))
+
+    if logs:
+        console.print("\n[bold]Activity[/bold]")
+        for timestamp, note in logs:
+            date = timestamp[:10]
+            console.print(f"  {date}  {note}")
+
+    if contacts:
+        console.print("\n[bold]Contacts[/bold]")
+        for name, role, email in contacts:
+            parts = "  " + (name or "—")
+            if role:
+                parts += f"  ({role})"
+            if email:
+                parts += f"  {email}"
+            console.print(parts)
