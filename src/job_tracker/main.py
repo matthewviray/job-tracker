@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional, List
 
 import click
 from rich.table import Table
@@ -42,7 +43,7 @@ def cli() -> None:
 @click.option("--url", default=None, help="Job posting URL.")
 @click.option("--notes", default=None, help="Any notes about the role.")
 @click.option("--next-action", default=None, help="Next step to take.")
-def add(company: str, role: str, status: str, url: str | None, notes: str | None, next_action: str | None) -> None:
+def add(company: str, role: str, status: str, url: Optional[str], notes: Optional[str], next_action: Optional[str]) -> None:
     """Add a new job application."""
     _validate_status(status)
     applied_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -57,10 +58,10 @@ def add(company: str, role: str, status: str, url: str | None, notes: str | None
 @cli.command(name="list")
 @click.option("--status", default=None, help="Filter by status (e.g. interview, applied).")
 @click.option("--company", default=None, help="Filter by company name (partial match).")
-def list_apps(status: str | None, company: str | None) -> None:
+def list_apps(status: Optional[str], company: Optional[str]) -> None:
     """List all applications, with optional filters."""
     query = "SELECT id, company, role, status, applied_date, next_action FROM applications WHERE 1=1"
-    params: list[str] = []
+    params: List[str] = []
     if status:
         query += " AND status = ?"
         params.append(status)
@@ -95,7 +96,7 @@ def list_apps(status: str | None, company: str | None) -> None:
 @click.option("--notes", default=None, help="Updated notes.")
 @click.option("--next-action", default=None, help="Next step to take.")
 @click.option("--url", default=None, help="Job posting URL.")
-def update(id: int, status: str | None, notes: str | None, next_action: str | None, url: str | None) -> None:
+def update(id: int, status: Optional[str], notes: Optional[str], next_action: Optional[str], url: Optional[str]) -> None:
     """Update fields on an existing application."""
     if status is not None:
         _validate_status(status)
@@ -213,8 +214,8 @@ def stats() -> None:
         return
 
     total = len(rows)
-    status_counts: dict[str, int] = {}
-    month_counts: dict[str, int] = {}
+    status_counts = {}
+    month_counts = {}
 
     for status, applied_date in rows:
         status_counts[status] = status_counts.get(status, 0) + 1
@@ -257,7 +258,7 @@ def stats() -> None:
 @click.argument("name")
 @click.option("--role", default=None, help="Contact's job title or role.")
 @click.option("--email", default=None, help="Contact's email address.")
-def contact(id: int, name: str, role: str | None, email: str | None) -> None:
+def contact(id: int, name: str, role: Optional[str], email: Optional[str]) -> None:
     """Add a contact person to an application."""
     with get_connection() as conn:
         exists = conn.execute("SELECT 1 FROM applications WHERE id = ?", (id,)).fetchone()
