@@ -220,3 +220,21 @@ def stats() -> None:
         f"Response rate: [bold]{response_rate:.0f}%[/bold]  |  "
         f"Offer rate: [bold]{offer_rate:.0f}%[/bold]"
     )
+
+
+@cli.command()
+@click.argument("id", type=int)
+@click.argument("name")
+@click.option("--role", default=None)
+@click.option("--email", default=None)
+def contact(id: int, name: str, role: str | None, email: str | None) -> None:
+    with get_connection() as conn:
+        exists = conn.execute("SELECT 1 FROM applications WHERE id = ?", (id,)).fetchone()
+        if not exists:
+            click.echo(f"No application found with ID {id}.")
+            return
+        conn.execute(
+            "INSERT INTO contacts (application_id, name, role, email) VALUES (?, ?, ?, ?)",
+            (id, name, role, email),
+        )
+    click.echo(f"Added contact: {name} for application #{id}.")
