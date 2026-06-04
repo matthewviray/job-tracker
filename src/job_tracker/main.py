@@ -61,3 +61,29 @@ def list_apps(status: str | None, company: str | None) -> None:
         table.add_row(*(str(v) if v is not None else "" for v in row))
 
     Console().print(table)
+
+
+@cli.command()
+@click.argument("id", type=int)
+@click.option("--status", default=None)
+@click.option("--notes", default=None)
+@click.option("--next-action", default=None)
+@click.option("--url", default=None)
+def update(id: int, status: str | None, notes: str | None, next_action: str | None, url: str | None) -> None:
+    fields = {"status": status, "notes": notes, "next_action": next_action, "url": url}
+    updates = {k: v for k, v in fields.items() if v is not None}
+
+    if not updates:
+        click.echo("No fields to update.")
+        return
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    params = list(updates.values()) + [id]
+
+    with get_connection() as conn:
+        cursor = conn.execute(f"UPDATE applications SET {set_clause} WHERE id = ?", params)
+        if cursor.rowcount == 0:
+            click.echo(f"No application found with ID {id}.")
+            return
+
+    click.echo(f"Updated application #{id}.")
