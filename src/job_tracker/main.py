@@ -87,3 +87,20 @@ def update(id: int, status: str | None, notes: str | None, next_action: str | No
             return
 
     click.echo(f"Updated application #{id}.")
+
+
+@cli.command()
+@click.argument("id", type=int)
+@click.argument("note")
+def log(id: int, note: str) -> None:
+    with get_connection() as conn:
+        exists = conn.execute("SELECT 1 FROM applications WHERE id = ?", (id,)).fetchone()
+        if not exists:
+            click.echo(f"No application found with ID {id}.")
+            return
+        timestamp = datetime.datetime.now().isoformat()
+        conn.execute(
+            "INSERT INTO activity_log (application_id, timestamp, note) VALUES (?, ?, ?)",
+            (id, timestamp, note),
+        )
+    click.echo(f"Logged: {note}")
