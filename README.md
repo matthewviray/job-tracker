@@ -2,7 +2,7 @@
 
 A command-line job application tracker that stores applications, recruiter
 contacts, and activity logs locally in SQLite. Helps you stay on top of
-every application without losing track of where things stand.
+every application without losing track of where things stand especially with a lot of applications.
 
 ## Usage
 
