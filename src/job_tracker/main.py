@@ -17,18 +17,33 @@ def _validate_status(status: str) -> None:
 
 
 @click.group()
+@click.version_option()
 def cli() -> None:
-    pass
+    """Track your job applications from the terminal.
+
+    Data is stored locally at ~/.jobs/applications.db.
+
+    Common workflow:
+
+    \b
+      job-tracker add "Stripe" "Data Analyst" --url https://...
+      job-tracker list
+      job-tracker update 1 --status interview
+      job-tracker log 1 "Had phone screen with recruiter"
+      job-tracker show 1
+      job-tracker stats
+    """
 
 
 @cli.command()
 @click.argument("company")
 @click.argument("role")
-@click.option("--status", default="applied", show_default=True)
-@click.option("--url", default=None)
-@click.option("--notes", default=None)
-@click.option("--next-action", default=None)
+@click.option("--status", default="applied", show_default=True, help="Application status.")
+@click.option("--url", default=None, help="Job posting URL.")
+@click.option("--notes", default=None, help="Any notes about the role.")
+@click.option("--next-action", default=None, help="Next step to take.")
 def add(company: str, role: str, status: str, url: str | None, notes: str | None, next_action: str | None) -> None:
+    """Add a new job application."""
     _validate_status(status)
     applied_date = datetime.date.today().strftime("%Y-%m-%d")
     with get_connection() as conn:
@@ -40,9 +55,10 @@ def add(company: str, role: str, status: str, url: str | None, notes: str | None
 
 
 @cli.command(name="list")
-@click.option("--status", default=None)
-@click.option("--company", default=None)
+@click.option("--status", default=None, help="Filter by status (e.g. interview, applied).")
+@click.option("--company", default=None, help="Filter by company name (partial match).")
 def list_apps(status: str | None, company: str | None) -> None:
+    """List all applications, with optional filters."""
     query = "SELECT id, company, role, status, applied_date, next_action FROM applications WHERE 1=1"
     params: list[str] = []
     if status:
@@ -75,11 +91,12 @@ def list_apps(status: str | None, company: str | None) -> None:
 
 @cli.command()
 @click.argument("id", type=int)
-@click.option("--status", default=None)
-@click.option("--notes", default=None)
-@click.option("--next-action", default=None)
-@click.option("--url", default=None)
+@click.option("--status", default=None, help="New status value.")
+@click.option("--notes", default=None, help="Updated notes.")
+@click.option("--next-action", default=None, help="Next step to take.")
+@click.option("--url", default=None, help="Job posting URL.")
 def update(id: int, status: str | None, notes: str | None, next_action: str | None, url: str | None) -> None:
+    """Update fields on an existing application."""
     if status is not None:
         _validate_status(status)
     fields = {"status": status, "notes": notes, "next_action": next_action, "url": url}
@@ -105,6 +122,7 @@ def update(id: int, status: str | None, notes: str | None, next_action: str | No
 @click.argument("id", type=int)
 @click.argument("note")
 def log(id: int, note: str) -> None:
+    """Add an activity log entry to an application."""
     with get_connection() as conn:
         exists = conn.execute("SELECT 1 FROM applications WHERE id = ?", (id,)).fetchone()
         if not exists:
@@ -121,6 +139,7 @@ def log(id: int, note: str) -> None:
 @cli.command()
 @click.argument("id", type=int)
 def show(id: int) -> None:
+    """Show full details for an application, including activity and contacts."""
     from rich.panel import Panel
     from rich.text import Text
 
@@ -183,6 +202,7 @@ def show(id: int) -> None:
 
 @cli.command()
 def stats() -> None:
+    """Show a summary: status funnel, monthly volume, response and offer rates."""
     console = Console()
 
     with get_connection() as conn:
@@ -235,9 +255,10 @@ def stats() -> None:
 @cli.command()
 @click.argument("id", type=int)
 @click.argument("name")
-@click.option("--role", default=None)
-@click.option("--email", default=None)
+@click.option("--role", default=None, help="Contact's job title or role.")
+@click.option("--email", default=None, help="Contact's email address.")
 def contact(id: int, name: str, role: str | None, email: str | None) -> None:
+    """Add a contact person to an application."""
     with get_connection() as conn:
         exists = conn.execute("SELECT 1 FROM applications WHERE id = ?", (id,)).fetchone()
         if not exists:
