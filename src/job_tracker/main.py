@@ -167,3 +167,56 @@ def show(id: int) -> None:
             if email:
                 parts += f"  {email}"
             console.print(parts)
+
+
+@cli.command()
+def stats() -> None:
+    from rich.panel import Panel
+
+    console = Console()
+
+    with get_connection() as conn:
+        rows = conn.execute("SELECT status, applied_date FROM applications").fetchall()
+
+    if not rows:
+        click.echo("No applications found.")
+        return
+
+    total = len(rows)
+    status_counts: dict[str, int] = {}
+    month_counts: dict[str, int] = {}
+
+    for status, applied_date in rows:
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if applied_date and len(applied_date) >= 7:
+            month = applied_date[:7]
+            month_counts[month] = month_counts.get(month, 0) + 1
+
+    applied_statuses = {"applied"}
+    responded = sum(v for k, v in status_counts.items() if k not in applied_statuses)
+    offered = sum(v for k, v in status_counts.items() if k in {"offered", "accepted"})
+    response_rate = responded / total * 100
+    offer_rate = offered / total * 100
+
+    max_count = max(status_counts.values())
+    bar_width = 30
+
+    console.print("\n[bold]Funnel by Status[/bold]")
+    for status, count in sorted(status_counts.items(), key=lambda x: -x[1]):
+        bar_len = round(count / max_count * bar_width)
+        bar = "█" * bar_len
+        console.print(f"  {status:<14} {bar} {count}")
+
+    if month_counts:
+        max_month = max(month_counts.values())
+        console.print("\n[bold]Applications by Month[/bold]")
+        for month in sorted(month_counts):
+            bar_len = round(month_counts[month] / max_month * bar_width)
+            bar = "█" * bar_len
+            console.print(f"  {month}  {bar} {month_counts[month]}")
+
+    console.print(
+        f"\nTotal: [bold]{total}[/bold]  |  "
+        f"Response rate: [bold]{response_rate:.0f}%[/bold]  |  "
+        f"Offer rate: [bold]{offer_rate:.0f}%[/bold]"
+    )
