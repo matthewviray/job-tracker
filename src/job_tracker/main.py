@@ -6,6 +6,15 @@ from rich.console import Console
 
 from job_tracker.db import get_connection
 
+VALID_STATUSES = {"applied", "phone_screen", "interview", "take_home", "final", "offered", "accepted", "rejected", "withdrawn"}
+
+
+def _validate_status(status: str) -> None:
+    if status not in VALID_STATUSES:
+        raise click.UsageError(
+            f"Invalid status '{status}'. Choose from: {', '.join(sorted(VALID_STATUSES))}"
+        )
+
 
 @click.group()
 def cli() -> None:
@@ -20,6 +29,7 @@ def cli() -> None:
 @click.option("--notes", default=None)
 @click.option("--next-action", default=None)
 def add(company: str, role: str, status: str, url: str | None, notes: str | None, next_action: str | None) -> None:
+    _validate_status(status)
     applied_date = datetime.date.today().strftime("%Y-%m-%d")
     with get_connection() as conn:
         conn.execute(
@@ -70,6 +80,8 @@ def list_apps(status: str | None, company: str | None) -> None:
 @click.option("--next-action", default=None)
 @click.option("--url", default=None)
 def update(id: int, status: str | None, notes: str | None, next_action: str | None, url: str | None) -> None:
+    if status is not None:
+        _validate_status(status)
     fields = {"status": status, "notes": notes, "next_action": next_action, "url": url}
     updates = {k: v for k, v in fields.items() if v is not None}
 
@@ -171,8 +183,6 @@ def show(id: int) -> None:
 
 @cli.command()
 def stats() -> None:
-    from rich.panel import Panel
-
     console = Console()
 
     with get_connection() as conn:
